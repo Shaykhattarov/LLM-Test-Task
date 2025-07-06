@@ -1,0 +1,72 @@
+services:
+    database:
+        container_name: postgres_container
+        image: postgres:17-bookworm
+        restart: always
+        environment:
+            POSTGRES_DB: ${POSTGRES_DB}
+            POSTGRES_USER: ${POSTGRES_USER}
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+            PGDATA: "/var/lib/postgresql/data/pgdata"
+        volumes:
+            - llmdb-data:/var/lib/postgresql/data
+        ports:
+            - "5432:5432"
+
+    backend:
+        build: 
+            context: /backend
+            dockerfile: Dockerfile
+        restart: always
+        environment:
+            DB_NAME: ${POSTGRES_DB}
+            DB_HOST: ${POSTGRES_HOST}
+            DB_PORT: ${POSTGRES_PORT}
+            DB_USER: ${POSTGRES_USER}
+            DB_PASSWORD: ${POSTGRES_PASSWORD}
+        ports:
+            - "8000:8000"
+        develop:
+            watch:
+                - action: sync
+                  path: .
+                  target: /backend
+                  ignore: 
+                    - .venv/
+                
+                - action: rebuild
+                  path: ./uv.lock
+
+        depends_on:
+            - database
+    
+    telegram-bot:
+        build: 
+            context: /bot
+            dockerfile: Dockerfile
+        restart: always
+        environment:
+            TOKEN: ${TELEGRAM_TOKEN}
+            DB_HOST: ${POSTGRES_HOST}
+            DB_PORT: ${POSTGRES_PORT}
+            DB_USER: ${POSTGRES_USER}
+            DB_PASSWORD: ${POSTGRES_PASSWORD}
+        ports: 
+            - "8080:8080"
+        develop:
+            watch:
+                - action: sync
+                  path: .
+                  target: /bot
+                  ignore: 
+                    - .venv/
+                
+                - action: rebuild
+                  path: ./uv.lock
+        depends_on:
+            - database
+
+        
+
+volumes:
+    llmdb-data:
