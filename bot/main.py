@@ -12,12 +12,16 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
 )
 
-from bot.database.middleware import DbSessionMiddleware
+from database.middleware import DbSessionMiddleware
+
+from routers import (
+    welcome,
+)
 
 
 async def main():
     """ Входная точка программы """
-    
+
     # Создание асинхронного движка для SQLAlchemy
     engine = create_async_engine(
         url=f"postgresql+asyncpg://{os.getenv("DB_USER")}:{os.getenv("DB_PASSWORD")}@{os.getenv("DB_HOST")}/{os.getenv("DB_NAME")}"
@@ -33,9 +37,10 @@ async def main():
 
     # Инициализация роутов
     dp.include_routers(
-
+        welcome.router,
     )
 
+    print("Token: ", os.getenv("TOKEN"))
     # Создание экземпляра бота
     bot = Bot(token=os.getenv("TOKEN"), default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 

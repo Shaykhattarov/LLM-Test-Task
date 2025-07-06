@@ -1,3 +1,4 @@
+import os
 from typing import Annotated, List
 
 from fastapi import APIRouter, Depends, status
@@ -9,4 +10,4 @@ router = APIRouter(prefix="/user", tags=["User"])
 
 @router.get("/")
 async def get_user():
-    ...
+    return os.getenv("DB_USER")

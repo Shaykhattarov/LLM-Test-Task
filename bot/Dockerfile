@@ -2,8 +2,8 @@ FROM python:3.13.5-slim-bookworm
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-# Install the project into `/backend`
-WORKDIR /backend
+# Install the project into `/bot`
+WORKDIR /bot
 
 # Enable bytecode compilation
 ENV UV_COMPILE_BYTECODE=1
@@ -18,7 +18,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-install-project --no-dev
 
 # Copying folder from /backend to container    
-COPY . /backend
+COPY . /bot
 
 # Sync the project
 RUN --mount=type=cache,target=/root/.cache/uv \

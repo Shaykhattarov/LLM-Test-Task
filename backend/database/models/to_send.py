@@ -23,7 +23,7 @@ class ToSendModel(BaseModel):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     answer_id: Mapped[int] = mapped_column(ForeignKey("generated_answers.id"), nullable=False)
-    created_at: Mapped[datetime.datetime] = mapped_column(
+    created_at = mapped_column(
         DateTime(timezone=True), server_default=func.now(),
     )
     

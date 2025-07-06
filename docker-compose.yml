@@ -15,13 +15,12 @@ services:
         networks:
             - ai-network
         healthcheck:
-            test: ["CMD-SHELL", "pg_isready", "-U", "${POSTGRES_USER}"]
+            test: pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}
             interval: 5s
             timeout: 5s
             retries: 10
 
     backend:
-        container-name: backend_container
         build: 
             context: /backend
             dockerfile: Dockerfile
@@ -46,12 +45,13 @@ services:
                 
                 - action: rebuild
                   path: ./uv.lock
+        env_file:
+            - .env
         depends_on:
             - database
             - ollama
     
     telegram-bot:
-        container-name: telegram-bot_container
         build: 
             context: /bot
             dockerfile: Dockerfile
@@ -76,11 +76,12 @@ services:
                 
                 - action: rebuild
                   path: ./uv.lock
+        env_file:
+            - .env
         depends_on:
             - database
 
     ollama:
-        container-name: ollama_container
         image: ollama/ollama:latest
         restart: unless-stopped
         ports:
@@ -96,10 +97,6 @@ services:
         networks:
             - ai-network
                 
-        
-
-
-        
 
 volumes:
     postgre-data:
