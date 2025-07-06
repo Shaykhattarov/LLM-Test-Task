@@ -2,22 +2,30 @@ services:
     database:
         container_name: postgres_container
         image: postgres:17-bookworm
-        restart: always
+        restart: unless-stopped
         environment:
             POSTGRES_DB: ${POSTGRES_DB}
             POSTGRES_USER: ${POSTGRES_USER}
             POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
             PGDATA: "/var/lib/postgresql/data/pgdata"
         volumes:
-            - llmdb-data:/var/lib/postgresql/data
+            - postgre-data:/var/lib/postgresql/data
         ports:
             - "5432:5432"
+        networks:
+            - ai-network
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready", "-U", "${POSTGRES_USER}"]
+            interval: 5s
+            timeout: 5s
+            retries: 10
 
     backend:
+        container-name: backend_container
         build: 
             context: /backend
             dockerfile: Dockerfile
-        restart: always
+        restart: unless-stopped
         environment:
             DB_NAME: ${POSTGRES_DB}
             DB_HOST: ${POSTGRES_HOST}
@@ -26,6 +34,8 @@ services:
             DB_PASSWORD: ${POSTGRES_PASSWORD}
         ports:
             - "8000:8000"
+        networks:
+            - ai-network
         develop:
             watch:
                 - action: sync
@@ -36,15 +46,16 @@ services:
                 
                 - action: rebuild
                   path: ./uv.lock
-
         depends_on:
             - database
+            - ollama
     
     telegram-bot:
+        container-name: telegram-bot_container
         build: 
             context: /bot
             dockerfile: Dockerfile
-        restart: always
+        restart: unless-stopped
         environment:
             TOKEN: ${TELEGRAM_TOKEN}
             DB_HOST: ${POSTGRES_HOST}
@@ -53,6 +64,8 @@ services:
             DB_PASSWORD: ${POSTGRES_PASSWORD}
         ports: 
             - "8080:8080"
+        networks:
+            - ai-network
         develop:
             watch:
                 - action: sync
@@ -66,7 +79,32 @@ services:
         depends_on:
             - database
 
+    ollama:
+        container-name: ollama_container
+        image: ollama/ollama:latest
+        restart: unless-stopped
+        ports:
+            - "11434:11434"
+        volumes:
+            - ollama-data:/var/lib/ollama/data
+        deploy:
+            resources:
+              reservations:
+                devices:
+                  - driver: nvidia
+                    capabilities: [gpu]
+        networks:
+            - ai-network
+                
+        
+
+
         
 
 volumes:
-    llmdb-data:
+    postgre-data:
+    ollama-data:
+
+networks:
+    ai-network:
+        driver: bridge
