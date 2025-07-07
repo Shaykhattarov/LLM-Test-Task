@@ -1,3 +1,6 @@
+import os
+import aioredis
+
 from aiogram import Router
 from aiogram.types import (
     Message,
@@ -47,11 +50,18 @@ async def messenger_handler(message: Message, session: AsyncSession):
             text="Произошла неожиданная ошибка при отправке сообщения :("
         )
     
+    async_redis = await aioredis.from_url(
+        f"redis://{os.getenv("REDIS_HOST")}:{os.getenv("REDIS_PORT")}", 
+        encoding="utf-8", 
+        decode_responses=True
+    )
+
     # Генерация хеш-ключа для кеша
     cache_key = generate_cache_key(message.text)
 
+    async_redis = await settings.async_redis
     # Поиск кеша по ключу
-    cached_response = settings.redis_host.get(cache_key)
+    cached_response = await async_redis.get(cache_key)
     if cached_response:
         # Если попали в кеш, то возвращаем ответ
         return await message.answer(
