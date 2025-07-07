@@ -16,6 +16,7 @@ from database.middleware import DbSessionMiddleware
 
 from routers import (
     welcome,
+    messenger,
 )
 
 
@@ -38,6 +39,7 @@ async def main():
     # Инициализация роутов
     dp.include_routers(
         welcome.router,
+        messenger.router,
     )
 
     print("Token: ", os.getenv("TOKEN"))

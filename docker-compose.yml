@@ -13,13 +13,13 @@ services:
         ports:
             - "5432:5432"
         networks:
-            - postgres
-            - ai-network
+            - app-network
         healthcheck:
             test: pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}
             interval: 5s
             timeout: 5s
             retries: 10
+
     database-admin:
         container_name: pgadmin_container
         image: dpage/pgadmin4:latest
@@ -28,16 +28,80 @@ services:
             PGADMIN_DEFAULT_EMAIL: admin@example.com
             PGADMIN_DEFAULT_PASSWORD: ${POSTGRES_PASSWORD}
         ports:
-            - "80:80"
+            - "80:8081"
         networks:
-            - postgres
+            - app-network
         depends_on:
             - database
+
+    redis: 
+        container_name: redis_container
+        image: redis:latest
+        ports:
+            - "6379:6379"
+        volumes:
+            - redis-data:/var/lib/redis/data
+        networks:
+            - app-network
+        
+    
+    celery-worker:
+        container_name: celery-worker
+        build:
+            context: /celery_worker
+            dockerfile: Dockerfile
+        command: celery -A celery_worker:celery worker --loglevel=info
+        volumes:
+            - celery-worker-data:/var/lib/celery/worker/data
+        environment:
+            - REDIS_HOST=${REDIS_HOST}
+            - REDIS_PORT=${REDIS_PORT}
+        links:
+            - redis
+        depends_on:
+            - database
+            - redis
+        networks:
+            -  app-network
+
+    celery-beat:
+        container_name: celery-beat
+        build:
+            context: /celery_worker
+            dockerfile: Dockerfile
+        command: celery -A celery_worker:celery beat --loglevel=info
+        volumes: 
+            - celery-worker-data:/var/lib/celery/worker/data
+        environment:
+            - REDIS_HOST=${REDIS_HOST}
+            - REDIS_PORT=${REDIS_PORT}
+        depends_on:
+            - database
+            - redis
+        networks:
+            - app-network
+
+    celery-flower:
+        container_name: celery-flower
+        build:
+            context: /celery_worker
+            dockerfile: Dockerfile
+        command: celery -A celery_worker:celery flower --loglevel=info --port=5002
+        ports:
+            - "5002:8082"
+        environment:
+            - REDIS_HOST=${REDIS_HOST}
+            - REDIS_PORT=${REDIS_PORT}
+        depends_on:
+            - redis
+            - celery-worker
+        networks:
+            - app-network
 
     backend:
         build: 
             context: /backend
-            dockerfile: Dockerfile
+            dockerfile: /docker/Dockerfile
         restart: unless-stopped
         environment:
             DB_NAME: ${POSTGRES_DB}
@@ -48,7 +112,7 @@ services:
         ports:
             - "8000:8000"
         networks:
-            - ai-network
+            - app-network
         develop:
             watch:
                 - action: sync
@@ -63,6 +127,8 @@ services:
             - .env
         depends_on:
             - database
+            - redis
+            - celery-worker
             - ollama
     
     telegram-bot:
@@ -79,7 +145,7 @@ services:
         ports: 
             - "8080:8080"
         networks:
-            - ai-network
+            - app-network
         develop:
             watch:
                 - action: sync
@@ -109,15 +175,15 @@ services:
                   - driver: nvidia
                     capabilities: [gpu]
         networks:
-            - ai-network
+            - app-network
                 
 
 volumes:
     postgre-data:
     ollama-data:
+    redis-data:
+    celery-worker-data:
 
 networks:
-    ai-network:
-        driver: bridge
-    postgres: 
-        driver: bridge
+    app-network:
+        driver: bridge 
