@@ -13,12 +13,26 @@ services:
         ports:
             - "5432:5432"
         networks:
+            - postgres
             - ai-network
         healthcheck:
             test: pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}
             interval: 5s
             timeout: 5s
             retries: 10
+    database-admin:
+        container_name: pgadmin_container
+        image: dpage/pgadmin4:latest
+        restart: unless-stopped
+        environment:
+            PGADMIN_DEFAULT_EMAIL: admin@example.com
+            PGADMIN_DEFAULT_PASSWORD: ${POSTGRES_PASSWORD}
+        ports:
+            - "80:80"
+        networks:
+            - postgres
+        depends_on:
+            - database
 
     backend:
         build: 
@@ -104,4 +118,6 @@ volumes:
 
 networks:
     ai-network:
+        driver: bridge
+    postgres: 
         driver: bridge

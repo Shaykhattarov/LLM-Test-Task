@@ -46,11 +46,12 @@ class Settings(BaseSettings):
         return [str(origin).rstrip("/") for origin in self.BACKEND_CORS_ORIGIN]
 
     PROJECT_NAME: str = "IBS Test Task | Question-Answer Bot"
-    POSTGRES_SERVER: str = os.getenv("POSTGRES_HOST")
-    POSTGRES_PORT: int = os.getenv("POSTGRES_PORT")
-    POSTGRES_USER: str = os.getenv("POSTGRES_USER")
-    POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD")
-    POSTGRES_DB: str = os.getenv("POSTGRES_DB")
+    POSTGRES_SERVER: str = os.getenv("DB_HOST")
+    POSTGRES_PORT: int = os.getenv("DB_PORT")
+    POSTGRES_USER: str = os.getenv("DB_USER")
+    POSTGRES_PASSWORD: str = os.getenv("DB_PASSWORD")
+    POSTGRES_DB: str = os.getenv("DB_NAME")
+    DATABASE_URL: str = f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_SERVER}/{POSTGRES_DB}"
 
 
 settings = Settings()
