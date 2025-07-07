@@ -2,22 +2,107 @@ services:
     database:
         container_name: postgres_container
         image: postgres:17-bookworm
-        restart: always
+        restart: unless-stopped
         environment:
             POSTGRES_DB: ${POSTGRES_DB}
             POSTGRES_USER: ${POSTGRES_USER}
             POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
             PGDATA: "/var/lib/postgresql/data/pgdata"
         volumes:
-            - llmdb-data:/var/lib/postgresql/data
+            - postgre-data:/var/lib/postgresql/data
         ports:
             - "5432:5432"
+        networks:
+            - app-network
+        healthcheck:
+            test: pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}
+            interval: 5s
+            timeout: 5s
+            retries: 10
+
+    database-admin:
+        container_name: pgadmin_container
+        image: dpage/pgadmin4:latest
+        restart: unless-stopped
+        environment:
+            PGADMIN_DEFAULT_EMAIL: admin@example.com
+            PGADMIN_DEFAULT_PASSWORD: ${POSTGRES_PASSWORD}
+        ports:
+            - "80:8081"
+        networks:
+            - app-network
+        depends_on:
+            - database
+
+    redis: 
+        container_name: redis_container
+        image: redis:latest
+        ports:
+            - "6379:6379"
+        volumes:
+            - redis-data:/var/lib/redis/data
+        networks:
+            - app-network
+        
+    
+    celery-worker:
+        container_name: celery-worker
+        build:
+            context: /celery_worker
+            dockerfile: Dockerfile
+        command: celery -A celery_worker:celery worker --loglevel=info
+        volumes:
+            - celery-worker-data:/var/lib/celery/worker/data
+        environment:
+            - REDIS_HOST=${REDIS_HOST}
+            - REDIS_PORT=${REDIS_PORT}
+        links:
+            - redis
+        depends_on:
+            - database
+            - redis
+        networks:
+            -  app-network
+
+    celery-beat:
+        container_name: celery-beat
+        build:
+            context: /celery_worker
+            dockerfile: Dockerfile
+        command: celery -A celery_worker:celery beat --loglevel=info
+        volumes: 
+            - celery-worker-data:/var/lib/celery/worker/data
+        environment:
+            - REDIS_HOST=${REDIS_HOST}
+            - REDIS_PORT=${REDIS_PORT}
+        depends_on:
+            - database
+            - redis
+        networks:
+            - app-network
+
+    celery-flower:
+        container_name: celery-flower
+        build:
+            context: /celery_worker
+            dockerfile: Dockerfile
+        command: celery -A celery_worker:celery flower --loglevel=info --port=5002
+        ports:
+            - "5002:8082"
+        environment:
+            - REDIS_HOST=${REDIS_HOST}
+            - REDIS_PORT=${REDIS_PORT}
+        depends_on:
+            - redis
+            - celery-worker
+        networks:
+            - app-network
 
     backend:
         build: 
             context: /backend
-            dockerfile: Dockerfile
-        restart: always
+            dockerfile: /docker/Dockerfile
+        restart: unless-stopped
         environment:
             DB_NAME: ${POSTGRES_DB}
             DB_HOST: ${POSTGRES_HOST}
@@ -26,6 +111,8 @@ services:
             DB_PASSWORD: ${POSTGRES_PASSWORD}
         ports:
             - "8000:8000"
+        networks:
+            - app-network
         develop:
             watch:
                 - action: sync
@@ -36,15 +123,19 @@ services:
                 
                 - action: rebuild
                   path: ./uv.lock
-
+        env_file:
+            - .env
         depends_on:
             - database
+            - redis
+            - celery-worker
+            - ollama
     
     telegram-bot:
         build: 
             context: /bot
             dockerfile: Dockerfile
-        restart: always
+        restart: unless-stopped
         environment:
             TOKEN: ${TELEGRAM_TOKEN}
             DB_HOST: ${POSTGRES_HOST}
@@ -53,6 +144,8 @@ services:
             DB_PASSWORD: ${POSTGRES_PASSWORD}
         ports: 
             - "8080:8080"
+        networks:
+            - app-network
         develop:
             watch:
                 - action: sync
@@ -63,10 +156,34 @@ services:
                 
                 - action: rebuild
                   path: ./uv.lock
+        env_file:
+            - .env
         depends_on:
             - database
 
-        
+    ollama:
+        image: ollama/ollama:latest
+        restart: unless-stopped
+        ports:
+            - "11434:11434"
+        volumes:
+            - ollama-data:/var/lib/ollama/data
+        deploy:
+            resources:
+              reservations:
+                devices:
+                  - driver: nvidia
+                    capabilities: [gpu]
+        networks:
+            - app-network
+                
 
 volumes:
-    llmdb-data:
+    postgre-data:
+    ollama-data:
+    redis-data:
+    celery-worker-data:
+
+networks:
+    app-network:
+        driver: bridge 

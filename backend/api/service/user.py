@@ -1,0 +1,55 @@
+import json
+import logging
+
+from fastapi import status
+from fastapi.responses import Response, JSONResponse
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from api.schemas.user import CreateUserSchema
+from database.models.user import UserModel
+
+
+
+class UserService:
+
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def registr(self, user: CreateUserSchema) -> Response:
+        user_model: UserModel = UserModel(
+            chat_id=user.chat_id,
+            user_id=user.user_id,
+            name=user.name,
+            username=user.username
+        )
+
+        try:
+            self.session.add(user_model)
+            await self.session.commit()
+        except Exception as err:
+            logging.error(err)
+            await self.session.rollback()
+            return Response(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        else:
+            await self.session.refresh(user_model)
+            return Response(
+                headers={
+                    "location": f"/user/{user_model.id}"
+                },
+                status_code=status.HTTP_201_CREATED
+            )
+        
+    async def get(self, id: int) -> JSONResponse:
+        user = await self.session.get(UserModel, id)
+        if user:
+            return JSONResponse(
+                content={
+                    'chat_id': user.chat_id,
+                    'user_id': user.user_id,
+                    'name': user.name,
+                    'username': user.username,
+                },
+                status_code=status.HTTP_200_OK
+            )
+        else:
+            return Response(status_code=status.HTTP_404_NOT_FOUND)

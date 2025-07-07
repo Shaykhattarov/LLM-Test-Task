@@ -20,18 +20,16 @@ class UserModel(BaseModel):
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True) 
-    telegram_id: Mapped[int] = mapped_column(Integer, unique=True, nullable=False)
-    login: Mapped[str] = mapped_column(String, unique=True, nullable=False)
-    password: Mapped[str] = mapped_column(String, nullable=False)
+    chat_id: Mapped[int] = mapped_column(Integer, unique=True, nullable=False)
+    user_id: Mapped[int] = mapped_column(Integer, unique=True, nullable=False)
     name: Mapped[str] = mapped_column(String, nullable=False)
-    created_at = Mapped[datetime.datetime] = mapped_column(
+    username: Mapped[str] = mapped_column(String, nullable=False)
+    created_at = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
 
     def __repr__(self):
-        return "<UserModel(id=%d, name=%s, telegram_id=%s, login=%s)>" % (
+        return "<UserModel(id=%d, name=%s)>" % (
             self.id,
             self.name,
-            self.telegram_id,
-            self.login,
         )
