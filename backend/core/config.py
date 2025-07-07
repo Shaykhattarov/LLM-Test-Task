@@ -51,7 +51,6 @@ class Settings(BaseSettings):
     POSTGRES_USER: str = os.getenv("DB_USER")
     POSTGRES_PASSWORD: str = os.getenv("DB_PASSWORD")
     POSTGRES_DB: str = os.getenv("DB_NAME")
-    ASYNC_DATABASE_URL: str = f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_SERVER}/{POSTGRES_DB}"
-    SYNC_DATABASE_URL: str = f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_SERVER}/{POSTGRES_DB}"
+    DATABASE_URL: str = f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_SERVER}/{POSTGRES_DB}"
 
 settings = Settings()

@@ -29,7 +29,7 @@ services:
             PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
             PGADMIN_LISTEN_PORT: ${PGADMIN_LISTEN_PORT}
         ports:
-            - "80:80"
+            - "8081:8081"
         networks:
             - app-network
         depends_on:
@@ -45,63 +45,75 @@ services:
             - redis-data:/var/lib/redis/data
         networks:
             - app-network
-        
-    celery-worker:
-        container_name: celery-worker
-        build:
-            context: /backend
-            dockerfile: Dockerfile
-        command: uv run celery -A celery worker --loglevel=info
-        volumes:
-            - celery-worker-data:/var/lib/celery/worker/data
-        environment:
-            - REDIS_HOST=${REDIS_HOST}
-            - REDIS_PORT=${REDIS_PORT}
-        links:
-            - redis
-        depends_on:
-            - database
-            - redis
-        networks:
-            -  app-network
 
-    celery-beat:
-        container_name: celery-beat
-        build:
-            context: /backend
-            dockerfile: Dockerfile
-        command: uv run celery -A celery beat --loglevel=info
-        volumes: 
-            - celery-worker-data:/var/lib/celery/worker/data
-        environment:
-            - REDIS_HOST=${REDIS_HOST}
-            - REDIS_PORT=${REDIS_PORT}
-        depends_on:
-            - database
-            - redis
-        networks:
-            - app-network
-
-    celery-flower:
-        container_name: celery-flower
-        image: mher/flower:latest
-        command: celery -A celery flower --loglevel=info --port=5002
+    rabbitmq:
+        container_name: rabbitmq
+        image: rabbitmq:latest
+        restart: unless-stopped
         ports:
-            - "5002:5002"
-        environment:
-            CELERY_BROKER_URL: ${CELERY_BROKER_URL}
-            FLOWER_BASIC: ${POSTGRES_USER}:${POSTGRES_PASSWORD}
-        depends_on:
-            - redis
-            - celery-worker
+            - "5672:5672"
+            - "15672:15672"
+        volumes: 
+            - rabbitmq-data:/var/lib/rabbitmq/data
         networks:
             - app-network
+
+    # celery-worker:
+    #     container_name: celery-worker
+    #     build:
+    #         context: /backend
+    #         dockerfile: Dockerfile
+    #     command: uv run celery -A celery worker --loglevel=info
+    #     volumes:
+    #         - celery-worker-data:/var/lib/celery/worker/data
+    #     environment:
+    #         - REDIS_HOST=${REDIS_HOST}
+    #         - REDIS_PORT=${REDIS_PORT}
+    #     links:
+    #         - redis
+    #     depends_on:
+    #         - database
+    #         - redis
+    #     networks:
+    #         -  app-network
+
+    # celery-beat:
+    #     container_name: celery-beat
+    #     build:
+    #         context: /backend
+    #         dockerfile: Dockerfile
+    #     command: uv run celery -A celery beat --loglevel=info
+    #     volumes: 
+    #         - celery-worker-data:/var/lib/celery/worker/data
+    #     environment:
+    #         - REDIS_HOST=${REDIS_HOST}
+    #         - REDIS_PORT=${REDIS_PORT}
+    #     depends_on:
+    #         - database
+    #         - redis
+    #     networks:
+    #         - app-network
+
+    # celery-flower:
+    #     container_name: celery-flower
+    #     image: mher/flower:latest
+    #     command: celery -A celery flower --loglevel=info --port=5002
+    #     ports:
+    #         - "5002:5002"
+    #     environment:
+    #         CELERY_BROKER_URL: ${CELERY_BROKER_URL}
+    #         FLOWER_BASIC: ${POSTGRES_USER}:${POSTGRES_PASSWORD}
+    #     depends_on:
+    #         - redis
+    #         - celery-worker
+    #     networks:
+    #         - app-network
 
     backend:
         build: 
             context: /backend
             dockerfile: Dockerfile
-        command: uv run uvicorn main:app --host=0.0.0.0 --port=8000
+        command: uv run uvicorn main:app --host=0.0.0.0 --port=8000 --log-level='trace'
         restart: unless-stopped
         environment:
             DB_NAME: ${POSTGRES_DB}
@@ -111,17 +123,20 @@ services:
             DB_PASSWORD: ${POSTGRES_PASSWORD}
             REDIS_HOST: ${REDIS_HOST}
             REDIS_PORT: ${REDIS_PORT}
+            OLLAMA_ENDPOINT: ${OLLAMA_ENDPOINT}
         ports:
             - "8000:8000"
         networks:
             - app-network
         develop:
             watch:
-                - action: sync
+                - action: sync+restart
                   path: .
                   target: /backend
                   ignore: 
                     - .venv/
+                    - .git/
+                    - __pycache__/
                 
                 - action: rebuild
                   path: ./uv.lock
@@ -130,7 +145,6 @@ services:
         depends_on:
             - database
             - redis
-            - celery-worker
             - ollama
     
     telegram-bot:
@@ -154,11 +168,13 @@ services:
             - app-network
         develop:
             watch:
-                - action: sync
+                - action: sync+restart
                   path: .
                   target: /bot
                   ignore: 
                     - .venv/
+                    - .git/
+                    - __pycache__/
                 
                 - action: rebuild
                   path: ./uv.lock
@@ -188,7 +204,8 @@ volumes:
     postgre-data:
     ollama-data:
     redis-data:
-    celery-worker-data:
+    # celery-worker-data:
+    rabbitmq-data:
 
 networks:
     app-network:

@@ -1,4 +1,5 @@
 import os
+import json
 import logging
 import aiohttp
 
@@ -33,23 +34,23 @@ async def messenger_handler(message: Message, session: AsyncSession):
             text="Ооо, вы новый пользователь бота. Начните работу выполнив команду: /start"
         )
     
-    messenger_service = MessengerService(session)
-    try:
-        message_schema = CreateMessageSchema(
-            user_id=user.id,
-            text=message.text
-        )
-    except ValidationError as err:
-        return await message.answer(
-            text="Длина сообщения не может быть больше 4096 символов"
-        )
+    # messenger_service = MessengerService(session)
+    # try:
+    #     message_schema = CreateMessageSchema(
+    #         user_id=user.id,
+    #         text=message.text
+    #     )
+    # except ValidationError as err:
+    #     return await message.answer(
+    #         text="Длина сообщения не может быть больше 4096 символов"
+    #     )
         
-    # Добавляем в БД новое сообщение и получаем id
-    message_id: int = await messenger_service.create(message_schema)
-    if message_id is None:
-        return await message.answer(
-            text="Произошла неожиданная ошибка при отправке сообщения :("
-        )
+    # # Добавляем в БД новое сообщение и получаем id
+    # message_id: int = await messenger_service.create(message_schema)
+    # if message_id is None:
+    #     return await message.answer(
+    #         text="Произошла неожиданная ошибка при отправке сообщения :("
+    #     )
     
     # Генерация хеш-ключа для кеша
     cache_key = generate_cache_key(message.text)
@@ -66,20 +67,28 @@ async def messenger_handler(message: Message, session: AsyncSession):
     # settings.celery_host.send_task("process_message_task", args=[message_id, ])
 
     async with aiohttp.ClientSession() as session:
-        url = os.getenv("BACKEND_ENDPOINT") + "/message/create"
+        url = os.getenv("BACKEND_ENDPOINT") + "/api/message/create"
         data = {
             "user_id": user.id,
             "text": message.text,
             "status": 'new'
         }
-        headers = {}
-        async with session.post(url, data=data) as response:           
+        headers = {
+            'content-type': 'application/json',
+            'accept': '*'
+        }
+        async with session.post(url, data=json.dumps(data), headers=headers) as response:           
             status_code = response.status
             headers = response.headers
+
             if status_code == 201:
                 logging.info(f"Create new message with path: {headers['location']}")
             else:
-                logging.error(f"Error in creating new message: {status_code}")
+                logging.error(f"Error in creating new message: {status_code} - {headers}")
+
+    return await message.answer(
+        text="Ожидание ответа..."
+    )
     
     
 
