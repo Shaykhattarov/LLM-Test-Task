@@ -35,8 +35,9 @@ services:
             - database
 
     redis: 
-        container_name: redis_container
+        container_name: redis
         image: redis:latest
+        restart: unless-stopped
         ports:
             - "6379:6379"
         volumes:
@@ -48,7 +49,7 @@ services:
     celery-worker:
         container_name: celery-worker
         build:
-            context: /celery_worker
+            context: /backend
             dockerfile: Dockerfile
         command: celery -A celery_worker:celery worker --loglevel=info
         volumes:
