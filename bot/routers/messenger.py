@@ -59,7 +59,7 @@ async def messenger_handler(message: Message, session: AsyncSession):
         )
 
     # Если сообщения нет в кеше, то обрабатываем дальше (передаем на backend через celery)
-    settings.celery_host.send_task("process_message_task", kwargs={"user": user.id, "message": message.text})
+    settings.celery_host.send_task("process_message_task", args=[message_id, ])
 
     
 
