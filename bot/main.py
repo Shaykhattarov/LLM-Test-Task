@@ -2,6 +2,7 @@ import os
 import asyncio
 import logging
 
+from celery import Celery
 from aiogram import Bot, Dispatcher
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
@@ -22,7 +23,6 @@ from routers import (
 
 async def main():
     """ Входная точка программы """
-
     # Создание асинхронного движка для SQLAlchemy
     engine = create_async_engine(
         url=f"postgresql+asyncpg://{os.getenv("DB_USER")}:{os.getenv("DB_PASSWORD")}@{os.getenv("DB_HOST")}/{os.getenv("DB_NAME")}"
@@ -42,7 +42,6 @@ async def main():
         messenger.router,
     )
 
-    print("Token: ", os.getenv("TOKEN"))
     # Создание экземпляра бота
     bot = Bot(token=os.getenv("TOKEN"), default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 

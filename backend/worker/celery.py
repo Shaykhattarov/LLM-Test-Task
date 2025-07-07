@@ -4,7 +4,7 @@ from celery import Celery
 
 
 celery = Celery(
-    'worker',
+    'celery',
     broker=f"redis://{os.getenv("REDIS_HOST")}:{os.getenv("REDIS_PORT")}/0",
     backend=f"redis://{os.getenv("REDIS_HOST")}:{os.getenv("REDIS_PORT")}/1",
     include=["worker.tasks"]

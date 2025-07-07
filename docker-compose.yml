@@ -45,13 +45,12 @@ services:
         networks:
             - app-network
         
-    
     celery-worker:
         container_name: celery-worker
         build:
             context: /backend
             dockerfile: Dockerfile
-        command: celery -A celery_worker:celery worker --loglevel=info
+        command: uv run celery -A celery worker --loglevel=info
         volumes:
             - celery-worker-data:/var/lib/celery/worker/data
         environment:
@@ -68,9 +67,9 @@ services:
     celery-beat:
         container_name: celery-beat
         build:
-            context: /celery_worker
+            context: /backend
             dockerfile: Dockerfile
-        command: celery -A celery_worker:celery beat --loglevel=info
+        command: uv run celery -A celery beat --loglevel=info
         volumes: 
             - celery-worker-data:/var/lib/celery/worker/data
         environment:
@@ -84,15 +83,13 @@ services:
 
     celery-flower:
         container_name: celery-flower
-        build:
-            context: /celery_worker
-            dockerfile: Dockerfile
-        command: celery -A celery_worker:celery flower --loglevel=info --port=5002
+        image: mher/flower:latest
+        command: celery -A celery flower --loglevel=info --port=5002
         ports:
-            - "5002:8082"
+            - "5002:5002"
         environment:
-            - REDIS_HOST=${REDIS_HOST}
-            - REDIS_PORT=${REDIS_PORT}
+            CELERY_BROKER_URL: ${CELERY_BROKER_URL}
+            FLOWER_BASIC: ${POSTGRES_USER}:${POSTGRES_PASSWORD}
         depends_on:
             - redis
             - celery-worker
@@ -102,7 +99,8 @@ services:
     backend:
         build: 
             context: /backend
-            dockerfile: /docker/Dockerfile
+            dockerfile: Dockerfile
+        command: uv run uvicorn main:app --host=0.0.0.0 --port=8000
         restart: unless-stopped
         environment:
             DB_NAME: ${POSTGRES_DB}
@@ -110,6 +108,8 @@ services:
             DB_PORT: ${POSTGRES_PORT}
             DB_USER: ${POSTGRES_USER}
             DB_PASSWORD: ${POSTGRES_PASSWORD}
+            REDIS_HOST: ${REDIS_HOST}
+            REDIS_PORT: ${REDIS_PORT}
         ports:
             - "8000:8000"
         networks:
@@ -143,6 +143,9 @@ services:
             DB_PORT: ${POSTGRES_PORT}
             DB_USER: ${POSTGRES_USER}
             DB_PASSWORD: ${POSTGRES_PASSWORD}
+            REDIS_HOST: ${REDIS_HOST}
+            REDIS_PORT: $REDIS_PORT
+            CELERY_BROKER_URL: ${CELERY_BROKER_URL}
         ports: 
             - "8080:8080"
         networks:

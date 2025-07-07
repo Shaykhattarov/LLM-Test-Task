@@ -10,6 +10,9 @@ from service.messenger import MessengerService
 from schemas.message import CreateMessageSchema
 from database.models.user import UserModel
 
+from bot.settings import settings
+from bot.utils.caching import generate_cache_key
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -37,10 +40,27 @@ async def messenger_handler(message: Message, session: AsyncSession):
             text="Длина сообщения не может быть больше 4096 символов"
         )
         
-
-    is_create: bool = await messenger_service.create(message_schema)
-    if not is_create:
+    # Добавляем в БД новое сообщение и получаем id
+    message_id: int = await messenger_service.create(message_schema)
+    if message_id is None:
         return await message.answer(
             text="Произошла неожиданная ошибка при отправке сообщения :("
         )
+    
+    # Генерация хеш-ключа для кеша
+    cache_key = generate_cache_key(message.text)
+
+    # Поиск кеша по ключу
+    cached_response = settings.redis_host.get(cache_key)
+    if cached_response:
+        # Если попали в кеш, то возвращаем ответ
+        return await message.answer(
+            text=cached_response
+        )
+
+    # Если сообщения нет в кеше, то обрабатываем дальше (передаем на backend через celery)
+    settings.celery_host.send_task("process_message_task", kwargs={"user": user.id, "message": message.text})
+
+    
+
         
