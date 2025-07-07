@@ -1,5 +1,6 @@
 import os
-import aioredis
+import logging
+import aiohttp
 
 from aiogram import Router
 from aiogram.types import (
@@ -8,13 +9,13 @@ from aiogram.types import (
 from typing import Optional
 from pydantic import ValidationError
 
+
 from service.user import UserService
 from service.messenger import MessengerService
 from schemas.message import CreateMessageSchema
 from database.models.user import UserModel
-
-from bot.settings import settings
-from bot.utils.caching import generate_cache_key
+from database.redis import redis_client
+from utils.caching import generate_cache_key
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -25,7 +26,7 @@ router = Router(name="messenger-router")
 async def messenger_handler(message: Message, session: AsyncSession):
     
     user_service = UserService(session)
-    user: Optional[UserModel] = user_service.get_by_chatid(message.chat.id)
+    user: Optional[UserModel] = await user_service.get_by_chatid(message.chat.id)
 
     if not user:
         return await message.answer(
@@ -50,18 +51,11 @@ async def messenger_handler(message: Message, session: AsyncSession):
             text="Произошла неожиданная ошибка при отправке сообщения :("
         )
     
-    async_redis = await aioredis.from_url(
-        f"redis://{os.getenv("REDIS_HOST")}:{os.getenv("REDIS_PORT")}", 
-        encoding="utf-8", 
-        decode_responses=True
-    )
-
     # Генерация хеш-ключа для кеша
     cache_key = generate_cache_key(message.text)
-
-    async_redis = await settings.async_redis
+    
     # Поиск кеша по ключу
-    cached_response = await async_redis.get(cache_key)
+    cached_response = await redis_client.get(cache_key)
     if cached_response:
         # Если попали в кеш, то возвращаем ответ
         return await message.answer(
@@ -69,8 +63,24 @@ async def messenger_handler(message: Message, session: AsyncSession):
         )
 
     # Если сообщения нет в кеше, то обрабатываем дальше (передаем на backend через celery)
-    settings.celery_host.send_task("process_message_task", args=[message_id, ])
+    # settings.celery_host.send_task("process_message_task", args=[message_id, ])
 
+    async with aiohttp.ClientSession() as session:
+        url = os.getenv("BACKEND_ENDPOINT") + "/message/create"
+        data = {
+            "user_id": user.id,
+            "text": message.text,
+            "status": 'new'
+        }
+        headers = {}
+        async with session.post(url, data=data) as response:           
+            status_code = response.status
+            headers = response.headers
+            if status_code == 201:
+                logging.info(f"Create new message with path: {headers['location']}")
+            else:
+                logging.error(f"Error in creating new message: {status_code}")
+    
     
 
         

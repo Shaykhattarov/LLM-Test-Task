@@ -25,10 +25,11 @@ services:
         image: dpage/pgadmin4:latest
         restart: unless-stopped
         environment:
-            PGADMIN_DEFAULT_EMAIL: admin@example.com
-            PGADMIN_DEFAULT_PASSWORD: ${POSTGRES_PASSWORD}
+            PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+            PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+            PGADMIN_LISTEN_PORT: ${PGADMIN_LISTEN_PORT}
         ports:
-            - "80:8081"
+            - "80:80"
         networks:
             - app-network
         depends_on:
@@ -142,10 +143,11 @@ services:
             DB_HOST: ${POSTGRES_HOST}
             DB_PORT: ${POSTGRES_PORT}
             DB_USER: ${POSTGRES_USER}
+            DB_NAME: ${POSTGRES_DB}
             DB_PASSWORD: ${POSTGRES_PASSWORD}
             REDIS_HOST: ${REDIS_HOST}
-            REDIS_PORT: $REDIS_PORT
-            CELERY_BROKER_URL: ${CELERY_BROKER_URL}
+            REDIS_PORT: ${REDIS_PORT}
+            BACKEND_ENDPOINT: ${BACKEND_ENDPOINT}
         ports: 
             - "8080:8080"
         networks:

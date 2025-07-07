@@ -2,14 +2,13 @@ from typing import Annotated
 
 from fastapi import (
     APIRouter, 
-    Depends, 
-    status
+    Depends
 )
 from starlette.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.schemas.message import CreateMessageSchema
-from api.service.message import MessageService
+from schemas.message import CreateMessageSchema
+from service.message import MessageService
 from api.dependencies import get_session
 
 

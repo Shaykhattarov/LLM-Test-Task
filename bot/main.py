@@ -2,7 +2,7 @@ import os
 import asyncio
 import logging
 
-from celery import Celery
+from datetime import datetime
 from aiogram import Bot, Dispatcher
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
@@ -50,8 +50,11 @@ async def main():
 
 
 if __name__ == "__main__":
-    # logging.basicConfig(
-    #     level=logging.INFO,
-        
-    # )
+    log_path: str = os.path.join(os.path.dirname(__file__), "logs", f'{f"{datetime.now().strftime('%Y-%m-%d')}.logs"}')
+
+    logging.basicConfig(
+        level=logging.INFO,
+        filename=log_path,
+        filemode="a"
+    )
     asyncio.run(main())

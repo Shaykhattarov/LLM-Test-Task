@@ -1,4 +1,5 @@
 from typing import Optional
+
 from database.models.message import MessageModel
 from schemas.message import CreateMessageSchema
 

@@ -1,3 +1,5 @@
+import logging
+
 from database.models.user import UserModel
 from schemas.user import CreateUserSchema
 
@@ -26,6 +28,7 @@ class UserService:
             await self.session.commit()
         except Exception as err:
             await self.session.rollback()
+            logging.error("Ошибка при создании пользователя: ", err)
             return False
         else:
             await self.session.refresh(user_model)
@@ -36,6 +39,7 @@ class UserService:
         try:
             result = await self.session.execute(statement)
         except Exception as err:
+            logging.error("Ошибка при получении данных пользователя: ", err)
             return None
         user: Optional[UserModel] = result.scalars().one_or_none()
         return user

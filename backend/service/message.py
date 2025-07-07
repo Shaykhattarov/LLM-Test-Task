@@ -1,12 +1,14 @@
 import logging
+from typing import Optional
 
 from fastapi import status
 from fastapi.responses import Response, JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.schemas.message import CreateMessageSchema
+from schemas.message import CreateMessageSchema
 from database.models.message import MessageModel
 
+from sqlalchemy import select
 
 
 class MessageService:
@@ -35,5 +37,7 @@ class MessageService:
                 status_code=status.HTTP_201_CREATED
             )
     
-    async def get(self, id: int):
-        ...
+    async def get(self, id: int) -> Optional[int]:
+        statement = select(MessageModel).where(MessageModel.id == id)
+        result = await self.session.execute(statement)
+        return result.scalar_one_or_none()

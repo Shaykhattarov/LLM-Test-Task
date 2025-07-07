@@ -5,7 +5,7 @@ from fastapi import status
 from fastapi.responses import Response, JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.schemas.user import CreateUserSchema
+from schemas.user import CreateUserSchema
 from database.models.user import UserModel
 
 
