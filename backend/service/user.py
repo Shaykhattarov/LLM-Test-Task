@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from schemas.user import CreateUserSchema
 
-from database.models.user import UserModel
+from common.database.models.user import UserModel
 
 
 

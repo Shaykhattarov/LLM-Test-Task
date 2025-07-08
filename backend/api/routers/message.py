@@ -4,14 +4,11 @@ from typing import Annotated
 from fastapi import (
     APIRouter, 
     Depends,
-    Request
 )
-from starlette.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from schemas.message import CreateMessageSchema
 from service.message import MessageService
-from service.conversation import ConversationService
 from api.dependencies import get_session
 
 

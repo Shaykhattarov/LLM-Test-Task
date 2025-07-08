@@ -1,11 +1,9 @@
-from typing import Annotated, List
+from typing import Annotated
 
 from fastapi import (
     APIRouter, 
-    Depends, 
-    status
+    Depends
 )
-from starlette.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from schemas.user import CreateUserSchema

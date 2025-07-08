@@ -12,9 +12,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from schemas.message import CreateMessageSchema
 
-from database.models.user import UserModel
-from database.models.message import MessageModel
-from database.models.generated_answer import GeneratedAnswerModel
+from common.database.models.user import UserModel
+from common.database.models.message import MessageModel
+from common.database.models.generated_answer import GeneratedAnswerModel
  
 from service.rabbit_client import RabbitClient
 
