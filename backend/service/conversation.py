@@ -20,10 +20,12 @@ class ConversationService:
         self.logger = logging.getLogger('uvicorn.error')
 
     async def get(self, chat_id: int) -> List | JSONResponse:
-        statement = select(MessageModel) \
+        statement = select(MessageModel, GeneratedAnswerModel) \
                     .join(UserModel, UserModel.id == MessageModel.user_id) \
-                    .outerjoin_from(MessageModel, GeneratedAnswerModel, GeneratedAnswerModel.message_id == MessageModel.id) \
-                    .filter(UserModel.chat_id == chat_id)
+                    .join(GeneratedAnswerModel, GeneratedAnswerModel.message_id == MessageModel.id) \
+                    .filter(UserModel.chat_id == chat_id) \
+                    .filter(MessageModel.status == 'pending') \
+                    .order_by(MessageModel.created_at)                    
         
         try:
             response = await self.session.execute(statement)
@@ -31,11 +33,28 @@ class ConversationService:
             self.logger.exception(f"ConversationService:get() - {err}")
             return []
         
-        response = response.scalars().all()
-
+        response = response.fetchall()
+        
+        conversation: List[dict] = []
+        for message, answer in response:
+            conversation.extend(
+                [
+                    {
+                        'role': 'user',
+                        'content': message
+                    },
+                    {
+                        'role': 'assistant',
+                        'content': answer
+                    }
+                ]
+            )
+        
         return JSONResponse(
-            content=jsonable_encoder(response),
+            content=jsonable_encoder(conversation),
             status_code=200
         )
+    
+    
 
   

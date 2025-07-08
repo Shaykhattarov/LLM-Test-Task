@@ -25,17 +25,15 @@ async def create_message(message: CreateMessageSchema, session: Annotated[AsyncS
     service = MessageService(session)
     return await service.create(message)
 
+
 @message_router.get("/{id}")
 async def get_message(id: int, session: Annotated[AsyncSession, Depends(get_session)]):
     service = MessageService(session)
     return await service.get(id)
 
-@message_router.get("/chat/{chat_id}")
-async def get_message_chat(chat_id: int, session: Annotated[AsyncSession, Depends(get_session)]):
-    service = MessageService(session)
-    return await service.get_conversation(chat_id)
 
-@message_router.get("/conversation/{chat_id}")
+@message_router.get("/history/{chat_id}")
 async def get_message_chat(chat_id: int, session: Annotated[AsyncSession, Depends(get_session)]):
-    service = ConversationService(session)
-    return await service.get(chat_id)
+    logging.info(f"Router:/message/history - {chat_id}")
+    service = MessageService(session)
+    return await service.history(chat_id)

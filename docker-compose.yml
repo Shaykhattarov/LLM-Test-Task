@@ -48,8 +48,11 @@ services:
 
     rabbitmq:
         container_name: rabbitmq
-        image: rabbitmq:latest
+        image: rabbitmq:management
         restart: unless-stopped
+        environment:
+            RABBITMQ_DEFAULT_USER: guest
+            RABBITMQ_DEFAULT_PASSWORD: guest  
         ports:
             - "5672:5672"
             - "15672:15672"
@@ -58,62 +61,11 @@ services:
         networks:
             - app-network
 
-    # celery-worker:
-    #     container_name: celery-worker
-    #     build:
-    #         context: /backend
-    #         dockerfile: Dockerfile
-    #     command: uv run celery -A celery worker --loglevel=info
-    #     volumes:
-    #         - celery-worker-data:/var/lib/celery/worker/data
-    #     environment:
-    #         - REDIS_HOST=${REDIS_HOST}
-    #         - REDIS_PORT=${REDIS_PORT}
-    #     links:
-    #         - redis
-    #     depends_on:
-    #         - database
-    #         - redis
-    #     networks:
-    #         -  app-network
-
-    # celery-beat:
-    #     container_name: celery-beat
-    #     build:
-    #         context: /backend
-    #         dockerfile: Dockerfile
-    #     command: uv run celery -A celery beat --loglevel=info
-    #     volumes: 
-    #         - celery-worker-data:/var/lib/celery/worker/data
-    #     environment:
-    #         - REDIS_HOST=${REDIS_HOST}
-    #         - REDIS_PORT=${REDIS_PORT}
-    #     depends_on:
-    #         - database
-    #         - redis
-    #     networks:
-    #         - app-network
-
-    # celery-flower:
-    #     container_name: celery-flower
-    #     image: mher/flower:latest
-    #     command: celery -A celery flower --loglevel=info --port=5002
-    #     ports:
-    #         - "5002:5002"
-    #     environment:
-    #         CELERY_BROKER_URL: ${CELERY_BROKER_URL}
-    #         FLOWER_BASIC: ${POSTGRES_USER}:${POSTGRES_PASSWORD}
-    #     depends_on:
-    #         - redis
-    #         - celery-worker
-    #     networks:
-    #         - app-network
-
     backend:
         build: 
             context: /backend
             dockerfile: Dockerfile
-        command: uv run uvicorn main:app --host=0.0.0.0 --port=8000 --log-level='trace'
+        command: uv run uvicorn main:app --reload --host=0.0.0.0 --port=8000 --log-level='trace'
         restart: unless-stopped
         environment:
             DB_NAME: ${POSTGRES_DB}
@@ -123,7 +75,11 @@ services:
             DB_PASSWORD: ${POSTGRES_PASSWORD}
             REDIS_HOST: ${REDIS_HOST}
             REDIS_PORT: ${REDIS_PORT}
+            RABBITMQ_HOST: ${RABBITMQ_HOST}
+            RABBITMQ_PORT: ${RABBITMQ_PORT}
             OLLAMA_ENDPOINT: ${OLLAMA_ENDPOINT}
+        volumes:
+            - ./common:/backend/common
         ports:
             - "8000:8000"
         networks:
@@ -147,6 +103,29 @@ services:
             - redis
             - ollama
     
+    ollama-service:
+        container_name: ollama_service
+        build:
+            context: /ollama_service
+            dockerfile: Dockerfile
+        restart: unless-stopped
+        volumes:
+            - ./common:/ollama_service/common
+        ports:
+            - "8001:8001"
+        networks:
+            - app-network
+        
+
+
+    # llm-distributor:
+    #     <<: *backend
+    #     command: uv run ./distributors/llm_model/main.py
+    #     ports:
+    #         - "8001:8001"
+    #     volumes:
+    #         - common-data:/backend
+
     telegram-bot:
         build: 
             context: /bot
@@ -162,6 +141,8 @@ services:
             REDIS_HOST: ${REDIS_HOST}
             REDIS_PORT: ${REDIS_PORT}
             BACKEND_ENDPOINT: ${BACKEND_ENDPOINT}
+        volumes:
+            - ./common:/bot/common
         ports: 
             - "8080:8080"
         networks:
@@ -186,10 +167,14 @@ services:
     ollama:
         image: ollama/ollama:latest
         restart: unless-stopped
+        pull_policy: always
+        tty: true
+        environment:
+            OLLAMA_MODELS: /usr/lib/ollama
         ports:
             - "11434:11434"
         volumes:
-            - ollama-data:/var/lib/ollama/data
+            - ollama-data:/usr/lib/ollama
         deploy:
             resources:
               reservations:
@@ -204,7 +189,7 @@ volumes:
     postgre-data:
     ollama-data:
     redis-data:
-    # celery-worker-data:
+    common-data:
     rabbitmq-data:
 
 networks:
