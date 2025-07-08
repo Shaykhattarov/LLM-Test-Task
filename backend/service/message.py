@@ -1,3 +1,4 @@
+import os
 import json
 import logging
 
@@ -16,8 +17,7 @@ from common.database.models.user import UserModel
 from common.database.models.message import MessageModel
 from common.database.models.generated_answer import GeneratedAnswerModel
  
-from service.rabbit_client import RabbitClient
-
+from common.broker.rabbitmq import RabbitMQClient
 
 
 
@@ -25,7 +25,11 @@ class MessageService:
 
     def __init__(self, session: AsyncSession):
         self.session = session
-        self.rabbitmq = RabbitClient("llm_generate_answer")
+        self.rabbitmq = RabbitMQClient(
+            host=os.getenv("RABBITMQ_HOST"),
+            port=os.getenv("RABBITMQ_PORT"),
+            queue_name="llm_generate_answer"
+        )
         self.logger = logging.getLogger('uvicorn.error')
 
 
@@ -44,7 +48,10 @@ class MessageService:
             'content': message.text
         })
         rabbit_message: bytes = json.dumps(history).encode('utf-8') # Получаем массив bytes 
-        await self.rabbitmq.publish_messages(rabbit_message) # Публикуем сообщение в rabbit
+        
+        await self.rabbitmq.connect() # Создаем соединение с rabbitmq
+        await self.rabbitmq.publish(rabbit_message) # Публикуем сообщение
+        await self.rabbitmq.disconnect() # После отправки сообщения 
 
         # Возвращаем ответ о создании сообщения в БД
         return Response(

@@ -65,7 +65,7 @@ services:
         build: 
             context: /backend
             dockerfile: Dockerfile
-        command: uv run uvicorn main:app --reload --host=0.0.0.0 --port=8000 --log-level='trace'
+        command: uv run uvicorn main:app --host=0.0.0.0 --port=8080 --log-level='trace'
         restart: unless-stopped
         environment:
             DB_NAME: ${POSTGRES_DB}
@@ -81,7 +81,7 @@ services:
         volumes:
             - ./common:/backend/common
         ports:
-            - "8000:8000"
+            - "8080:8080"
         networks:
             - app-network
         develop:
@@ -111,21 +111,15 @@ services:
         restart: unless-stopped
         volumes:
             - ./common:/ollama_service/common
+        environment:
+            RABBITMQ_HOST: ${RABBITMQ_HOST}
+            RABBITMQ_PORT: ${RABBITMQ_PORT}
+            OLLAMA_ENDPOINT: ${OLLAMA_ENDPOINT}
         ports:
-            - "8001:8001"
+            - "8082:8082"
         networks:
             - app-network
         
-
-
-    # llm-distributor:
-    #     <<: *backend
-    #     command: uv run ./distributors/llm_model/main.py
-    #     ports:
-    #         - "8001:8001"
-    #     volumes:
-    #         - common-data:/backend
-
     telegram-bot:
         build: 
             context: /bot
@@ -144,7 +138,7 @@ services:
         volumes:
             - ./common:/bot/common
         ports: 
-            - "8080:8080"
+            - "8083:8083"
         networks:
             - app-network
         develop:

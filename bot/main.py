@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
 )
 
-from database.middleware import DbSessionMiddleware
+from core.middleware import DbSessionMiddleware
 
 from routers import (
     welcome,

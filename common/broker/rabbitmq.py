@@ -2,12 +2,11 @@ import json
 import logging
 import aio_pika
 
-from abc import ABC
 from aio_pika import ExchangeType, Message, DeliveryMode
 
 
 
-class AbstractRabbitMQClient(ABC):
+class RabbitMQClient:
 
     def __init__(self, host: str, port: int, queue_name: str):
         self.host = host
