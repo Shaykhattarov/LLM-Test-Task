@@ -8,12 +8,8 @@ from aiogram.types import (
     Message,
 )
 from typing import Optional
-from pydantic import ValidationError
-
 
 from service.user import UserService
-from service.messenger import MessengerService
-from schemas.message import CreateMessageSchema
 from common.database.models.user import UserModel
 from common.database.engine import redis
 from utils.caching import generate_cache_key
@@ -33,25 +29,7 @@ async def messenger_handler(message: Message, session: AsyncSession):
         return await message.answer(
             text="Ооо, вы новый пользователь бота. Начните работу выполнив команду: /start"
         )
-    
-    # messenger_service = MessengerService(session)
-    # try:
-    #     message_schema = CreateMessageSchema(
-    #         user_id=user.id,
-    #         text=message.text
-    #     )
-    # except ValidationError as err:
-    #     return await message.answer(
-    #         text="Длина сообщения не может быть больше 4096 символов"
-    #     )
-        
-    # # Добавляем в БД новое сообщение и получаем id
-    # message_id: int = await messenger_service.create(message_schema)
-    # if message_id is None:
-    #     return await message.answer(
-    #         text="Произошла неожиданная ошибка при отправке сообщения :("
-    #     )
-    
+
     # Генерация хеш-ключа для кеша
     cache_key = generate_cache_key(message.text)
     
@@ -63,9 +41,7 @@ async def messenger_handler(message: Message, session: AsyncSession):
             text=cached_response
         )
 
-    # Если сообщения нет в кеше, то обрабатываем дальше (передаем на backend через celery)
-    # settings.celery_host.send_task("process_message_task", args=[message_id, ])
-
+    # Отправка сообщения на сервер 
     async with aiohttp.ClientSession() as session:
         url = os.getenv("BACKEND_ENDPOINT") + "/api/message/create"
         data = {
