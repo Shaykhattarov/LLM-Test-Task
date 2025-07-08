@@ -14,8 +14,8 @@ from pydantic import ValidationError
 from service.user import UserService
 from service.messenger import MessengerService
 from schemas.message import CreateMessageSchema
-from database.models.user import UserModel
-from database.redis import redis_client
+from common.database.models.user import UserModel
+from common.database.engine import redis
 from utils.caching import generate_cache_key
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -56,7 +56,7 @@ async def messenger_handler(message: Message, session: AsyncSession):
     cache_key = generate_cache_key(message.text)
     
     # Поиск кеша по ключу
-    cached_response = await redis_client.get(cache_key)
+    cached_response = await redis.get(cache_key)
     if cached_response:
         # Если попали в кеш, то возвращаем ответ
         return await message.answer(

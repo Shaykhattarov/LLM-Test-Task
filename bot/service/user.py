@@ -1,6 +1,6 @@
 import logging
 
-from database.models.user import UserModel
+from common.database.models.user import UserModel
 from schemas.user import CreateUserSchema
 
 from typing import Optional
