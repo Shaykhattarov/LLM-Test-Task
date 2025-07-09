@@ -3,7 +3,7 @@ FROM python:3.13.5-slim-bookworm
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 # Install the project into `/bot`
-WORKDIR /bot
+WORKDIR /ollama_service
 
 # Enable bytecode compilation
 ENV UV_COMPILE_BYTECODE=1
@@ -18,14 +18,14 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-install-project --no-dev
 
 # Copying folder from /backend to container    
-COPY . /bot
+COPY . /ollama_service
 
 # Sync the project
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-dev
 
 # Place executables in the environment at the front of the path
-ENV PATH="/bot/.venv/bin:$PATH"
+ENV PATH="/ollama_service/.venv/bin:$PATH"
 
 ENTRYPOINT ["uv", "run", "main.py"]
 

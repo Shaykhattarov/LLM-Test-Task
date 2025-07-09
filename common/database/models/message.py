@@ -32,8 +32,8 @@ class MessageModel(BaseModel):
         name="messagestatus",
         create_constraint=True,
         validate_string=True,
-    ))
-    created_at: Mapped[datetime.datetime] = mapped_column(
+    ), default='new')
+    created_at = mapped_column(
         DateTime(timezone=True), server_default=func.now(),
     )
 
