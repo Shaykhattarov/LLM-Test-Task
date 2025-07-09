@@ -1,15 +1,15 @@
+
 import os
 import logging
 
-from typing import Optional
+from typing import Any, Optional, Union
 
 from fastapi import status
-from fastapi.responses import Response, JSONResponse
+from fastapi.responses import Response
 
-from service.user import UserService
+from core.config import rabbit_broker
 from service.message import MessageService
 
-from common.broker.rabbitmq import RabbitMQClient
 from common.database.models.user import UserModel
 from common.database.models.message import MessageModel
 from common.database.models.to_send import ToSendModel
@@ -27,11 +27,8 @@ class GeneratedAnswerService:
         self.message_service = MessageService(self.session)
         self.logger = logging.getLogger('uvicorn.error')
 
-    async def get(self, id: int):
-        ...
-
-    async def create(self, message: dict):
-        answer = await self.__create(message)
+    async def create(self, message: dict) -> Optional[GeneratedAnswerModel]:
+        answer: Optional[GeneratedAnswerModel] = await self.__create(message)
         
         if answer is None:
             self.logger.info("GeneratedAnswerService:create() -> failed")
@@ -39,20 +36,39 @@ class GeneratedAnswerService:
         
         self.logger.info(f"GeneratedAnswerService:create() -> successfull({answer.id})")
 
-    async def approve(self, id: int):
-        to_send: Optional[ToSendModel] = self.__approve(id)
-        
-        if to_send is None:
-            return Response(
-                status_code=status.HTTP_404_NOT_FOUND
-            )
+        return answer
 
-        # Получение текста ответа пользователю
-        answer: Optional[GeneratedAnswerModel] = self.__get(to_send.answer_id)       
-        user: Optional[UserModel] = self.__get_receiver(answer.id)
-        formatted_answer = {
-            'chat_id': '',
+    async def approve(self, id: int) -> bool:
+        approve_info: Optional[GeneratedAnswerModel] = await self.__select_approve_info(id)
+
+        if approve_info is None:
+            return False
+
+        request_data: dict = {
+            'chat_id': approve_info.chat_id,
+            'content': approve_info.text
         }
+
+        # Отправка сообщения через rabbit
+        await rabbit_broker.connect()
+        await rabbit_broker.publish(request_data, 'tgfrontend_messages')
+
+        return True
+
+    async def __select_approve_info(self, id: int) -> Optional[GeneratedAnswerModel]:
+        statement = select(GeneratedAnswerModel) \
+                    .join(MessageModel.user_id, GeneratedAnswerModel.message_id == MessageModel.id) \
+                    .join(UserModel.chat_id, UserModel.id == MessageModel.user_id) \
+                    .where(GeneratedAnswerModel.id == id)
+
+        try:
+            response = await self.session.execute(statement)
+        except Exception as err:
+            self.logger.exception("GeneratedAnswerService:__approve() - " + err)
+            return False
+        else:
+            response = response.scalar_one_or_none()
+            return response
 
     async def edit(self):
         ...
@@ -90,29 +106,6 @@ class GeneratedAnswerService:
             return None
         return response.scalar_one_or_none()
 
-
-    async def __approve(self, id: int) -> Optional[ToSendModel]:
-        answer: Optional[GeneratedAnswerModel] = await self.__get(id)
-        message: Optional[MessageModel] = await self.message_service._get(answer.message_id)
-
-        if answer is None:
-            self.logger.exception("GeneratedAnswerService:__approve() - answer is None")
-            return None
-        
-        to_send = ToSendModel(
-            answer_id=answer.id
-        )
-        try:
-            self.session.add(to_send)
-            await self.session.commit()
-        except Exception as err:
-            self.logger.exception("GeneratedAnswerService:__approve() - " + err)
-            await self.session.rollback()
-            return None
-        else:
-            await self.session.refresh(to_send)
-            return to_send
-        
     async def __get_receiver(self, answer_id: int) -> Optional[UserModel]:
         statement = select(UserModel) \
             .join(GeneratedAnswerModel, GeneratedAnswerModel == answer_id) \

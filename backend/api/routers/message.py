@@ -4,11 +4,16 @@ from typing import Annotated
 from fastapi import (
     APIRouter, 
     Depends,
+    status
 )
+
+from fastapi.responses import Response
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from schemas.message import CreateMessageSchema
+from schemas.message import CreateMessageSchema, EditModelAnswerSchema
 from service.message import MessageService
+from service.answer import GeneratedAnswerService
 from api.dependencies import get_session
 
 
@@ -40,3 +45,26 @@ async def get_messages_by_status(status: str, session: Annotated[AsyncSession, D
     logging.info(f"Router:/message/status/ - {status}")
     service = MessageService(session)
     return await service.getlist_status(status)
+
+
+@message_router.post("/answer/approve/{answer_id}")
+async def approve_model_answer(answer_id: int, session: Annotated[AsyncSession, Depends(get_session)]):
+    service = GeneratedAnswerService(session)
+    response = await service.approve(answer_id)
+    if not response:
+        return Response(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+    return Response(
+        status_code=status.HTTP_204_NO_CONTENT
+    )
+
+@message_router.post("/answer/edit")
+async def edit_model_answer(answer: EditModelAnswerSchema, session: Annotated[AsyncSession, Depends(get_session)]):
+    service = GeneratedAnswerService(session)
+    return await service.edit(answer)
+
+@message_router.post("/answer/deny/{answer_id}")
+async def deny_model_answer(answer_id: int, session: Annotated[AsyncSession, Depends(get_session)]):
+    service = GeneratedAnswerService(session)
+    return await service.deny(answer_id)

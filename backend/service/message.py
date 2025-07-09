@@ -13,19 +13,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from schemas.message import (
     CreateMessageSchema,
-    MessageSchema
+    MessageSchema,
+    UpdateMessageSchema
 )
 
 from core.config import rabbit_broker
-from faststream.rabbit.types import AioPikaSendableMessage
 
 from common.database.models.user import UserModel
 from common.database.models.message import MessageModel, MessageStatus
 from common.database.models.generated_answer import GeneratedAnswerModel
  
-
-
-
 
 class MessageService:
 
@@ -106,6 +103,11 @@ class MessageService:
             status_code=200
         )
     
+    async def update(self, updated_message: UpdateMessageSchema) -> Response:
+        ...
+
+
+
     async def _get(self, id: int) -> Optional[MessageModel]:
         statement = select(MessageModel).where(MessageModel.id == id)
         try:
@@ -163,6 +165,13 @@ class MessageService:
 
         return conversation
     
+    async def _update(self, updated_message: UpdateMessageSchema) -> Optional[MessageModel]:
+        message_model = MessageModel(
+            id=updated_message.id,
+            user_id=updated_message.user_id,
+
+        )
+
     async def __create(self, message: CreateMessageSchema) -> Optional[MessageModel]:
         message_model = MessageModel(
             user_id=message.user_id,
