@@ -54,9 +54,6 @@ class MessageService:
             "model_messages",
         )
         
-        # await self.rabbitmq.connect() # Создаем соединение с rabbitmq
-        # await self.rabbitmq.publish(history) # Публикуем сообщение
-
         # Возвращаем ответ о создании сообщения в БД
         return Response(
                 headers={
@@ -80,12 +77,12 @@ class MessageService:
             created_at=message.created_at,
         )
         return JSONResponse(
-            content=result.model_dump_json(),
+            content=jsonable_encoder(result),
             status_code=status.HTTP_200_OK
         )
 
-    async def getlist_status(self, mstatus: MessageStatus) -> JSONResponse:
-        if not isinstance(mstatus, str) or not isinstance(mstatus, MessageStatus):
+    async def getlist_status(self, mstatus: str) -> JSONResponse:
+        if not isinstance(mstatus, str) and mstatus not in MessageStatus:
             return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST)
         
         messages: List[dict] = await self.__getlist_status(mstatus)
@@ -95,19 +92,33 @@ class MessageService:
             status_code=status.HTTP_200_OK
         )            
 
-    async def history(self, chat_id: int) -> JSONResponse:
-        conversation = await self.__history(chat_id)
-        
+    async def history(self, chat_id: int, limit=5) -> JSONResponse:
+        conversation = await self.__history(chat_id=chat_id, limit=limit)
+        # self.logger.info(conversation)
+
         return JSONResponse(
             content=jsonable_encoder(conversation), 
             status_code=200
         )
     
-    async def update(self, updated_message: UpdateMessageSchema) -> Response:
-        ...
+    async def update_status(self, id: int, status: MessageStatus) -> bool:
+        # self.logger.info(status, type(status))
+        is_updated: bool = await self.__update_status(id, status)
+        return is_updated
 
-
-
+    async def __update_status(self, id: int, status: MessageStatus):
+        statement = update(MessageModel) \
+            .where(MessageModel.id == id) \
+            .values(status=status)
+        try:
+            await self.session.execute(statement)
+            await self.session.commit()
+        except Exception as err:
+            self.logger.exception(err)
+            return False
+        
+        return True
+        
     async def _get(self, id: int) -> Optional[MessageModel]:
         statement = select(MessageModel).where(MessageModel.id == id)
         try:
@@ -118,23 +129,22 @@ class MessageService:
         else:
             return result.scalar_one_or_none()
         
-    async def __history(self, chat_id: int, user_id: int=None, limit: int = 10) -> List[dict[str]]:
+    async def __history(self, chat_id: int, user_id: int=None, limit: int = 5) -> List[dict[str]]:
         """ Получение истории сообщений пользователя по chat_id или user_id (костыльно) """
         if user_id is None:
             statement = select(MessageModel, GeneratedAnswerModel) \
-                    .join(UserModel, UserModel.id == MessageModel.user_id) \
                     .join(GeneratedAnswerModel, GeneratedAnswerModel.message_id == MessageModel.id) \
-                    .filter(UserModel.chat_id == chat_id) \
-                    .filter(MessageModel.status != 'new') \
-                    .order_by(desc(MessageModel.created_at)) \
+                    .join(UserModel, UserModel.chat_id == chat_id) \
+                    .filter(MessageModel.status == 'send') \
                     .limit(limit) \
-                    .order_by(MessageModel.created_at)
+                    .order_by(desc(MessageModel.created_at))
+                          
         else:
             statement = select(MessageModel, GeneratedAnswerModel) \
                     .join(UserModel, UserModel.id == MessageModel.user_id) \
                     .join(GeneratedAnswerModel, GeneratedAnswerModel.message_id == MessageModel.id) \
+                    .filter(MessageModel.status == 'send') \
                     .filter(UserModel.id == user_id) \
-                    .filter(MessageModel.status != 'new') \
                     .order_by(desc(MessageModel.created_at)) \
                     .limit(limit) \
                     .order_by(MessageModel.created_at)
@@ -190,7 +200,7 @@ class MessageService:
 
         return message_model
     
-    async def __getlist_status(self, mstatus: MessageStatus, limit:int=50, order_by:str="asc") -> List[dict[str]]:
+    async def __getlist_status(self, mstatus: str, limit:int=50, order_by:str="asc") -> List[dict[str]]:
         if order_by.lower() == "asc":
             statement = select(MessageModel) \
                 .where(MessageModel.status == mstatus) \

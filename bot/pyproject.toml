@@ -13,4 +13,6 @@ dependencies = [
     "pydantic-settings>=2.10.1",
     "setuptools>=80.9.0",
     "sqlalchemy>=2.0.41",
+    "dishka>=1.6.0",
+    "faststream[rabbit]>=0.5.45",
 ]

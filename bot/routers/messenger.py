@@ -9,12 +9,14 @@ from aiogram.types import (
 )
 from typing import Optional
 
+# from core.config import rabbit_broker
 from service.user import UserService
 from common.database.models.user import UserModel
 from common.database.engine import redis
 from utils.caching import generate_cache_key
 
 from sqlalchemy.ext.asyncio import AsyncSession
+
 
 
 router = Router(name="messenger-router")
@@ -40,6 +42,15 @@ async def messenger_handler(message: Message, session: AsyncSession):
         return await message.answer(
             text=cached_response
         )
+
+    data = {
+            "user_id": user.id,
+            "text": message.text,
+            "status": 'new'
+    }
+
+    # await rabbit_broker.connect()
+    # await rabbit_broker.publish(data, 'tgbackend_messages')
 
     # Отправка сообщения на сервер 
     async with aiohttp.ClientSession() as session:
