@@ -1,20 +1,20 @@
 ## Загрузка проекта локально
-    Выполнить команду:
+Выполнить команду:
 ```bash
     git clone https://github.com/Shaykhattarov/LLM-Test-Task.git
 ```
 
 ## Используемое окружение
-    - ОС Windows
-    - Visual Studio Code
-    - Python 3.13
-    - Uv (Виртуальное окружение Python)
-    - Docker Desktop
-    - WSL2
+- ОС Windows
+- Visual Studio Code
+- Python 3.13
+- Uv (Виртуальное окружение Python)
+- Docker Desktop
+- WSL2
     
 ### Настройка окружения
-    Для запуска проекта необходимо создать .env файл (Пример .env файла отображен в файле .env-example).
-    И заполнить следующие строки своими данными:
+Для запуска проекта необходимо создать .env файл (Пример .env файла отображен в файле .env-example).
+И заполнить следующие строки своими данными:
 ```text
     # Project Settings
     PROJECT_NAME="<Your project name>"
@@ -35,23 +35,22 @@
 ```
 
 #### Дополнительно:
-    - Установить "nvidia-container-toolkit" для запуска LLM на GPU
+- Установить "nvidia-container-toolkit" для запуска LLM на GPU
 
 ## Запуск проекта
-
-    Первый запуск проекта:
+Первый запуск проекта:
 ```bash
     cd ./LLM-Test-Task/
     docker-compose build
     docker-compose up -d
 ```
 
-    После запуска проекта необходимо выполнить (Для использования другой модели изменить llama3.2 на другое наименование):
+После запуска проекта необходимо выполнить (Для использования другой модели изменить llama3.2 на другое наименование):
 ```bash
     docker exec -t ibs-ollama-1 ollama pull llama3.2
 ```
 
-    Остановка проекта:
+Остановка проекта:
 ```bash
     docker-compose down
 ```
