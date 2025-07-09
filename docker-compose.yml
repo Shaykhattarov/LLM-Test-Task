@@ -25,83 +25,47 @@ services:
         image: dpage/pgadmin4:latest
         restart: unless-stopped
         environment:
-            PGADMIN_DEFAULT_EMAIL: admin@example.com
-            PGADMIN_DEFAULT_PASSWORD: ${POSTGRES_PASSWORD}
+            PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+            PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+            PGADMIN_LISTEN_PORT: ${PGADMIN_LISTEN_PORT}
         ports:
-            - "80:8081"
+            - "8081:8081"
         networks:
             - app-network
         depends_on:
             - database
 
     redis: 
-        container_name: redis_container
+        container_name: redis
         image: redis:latest
+        restart: unless-stopped
         ports:
             - "6379:6379"
         volumes:
             - redis-data:/var/lib/redis/data
         networks:
             - app-network
-        
-    
-    celery-worker:
-        container_name: celery-worker
-        build:
-            context: /celery_worker
-            dockerfile: Dockerfile
-        command: celery -A celery_worker:celery worker --loglevel=info
-        volumes:
-            - celery-worker-data:/var/lib/celery/worker/data
-        environment:
-            - REDIS_HOST=${REDIS_HOST}
-            - REDIS_PORT=${REDIS_PORT}
-        links:
-            - redis
-        depends_on:
-            - database
-            - redis
-        networks:
-            -  app-network
 
-    celery-beat:
-        container_name: celery-beat
-        build:
-            context: /celery_worker
-            dockerfile: Dockerfile
-        command: celery -A celery_worker:celery beat --loglevel=info
-        volumes: 
-            - celery-worker-data:/var/lib/celery/worker/data
+    rabbitmq:
+        container_name: rabbitmq
+        image: rabbitmq:management
+        restart: unless-stopped
         environment:
-            - REDIS_HOST=${REDIS_HOST}
-            - REDIS_PORT=${REDIS_PORT}
-        depends_on:
-            - database
-            - redis
-        networks:
-            - app-network
-
-    celery-flower:
-        container_name: celery-flower
-        build:
-            context: /celery_worker
-            dockerfile: Dockerfile
-        command: celery -A celery_worker:celery flower --loglevel=info --port=5002
+            RABBITMQ_DEFAULT_USER: guest
+            RABBITMQ_DEFAULT_PASSWORD: guest  
         ports:
-            - "5002:8082"
-        environment:
-            - REDIS_HOST=${REDIS_HOST}
-            - REDIS_PORT=${REDIS_PORT}
-        depends_on:
-            - redis
-            - celery-worker
+            - "5672:5672"
+            - "15672:15672"
+        volumes: 
+            - rabbitmq-data:/var/lib/rabbitmq/data
         networks:
             - app-network
 
     backend:
         build: 
             context: /backend
-            dockerfile: /docker/Dockerfile
+            dockerfile: Dockerfile
+        command: uv run uvicorn main:app --host=0.0.0.0 --port=8000 --log-level='trace'
         restart: unless-stopped
         environment:
             DB_NAME: ${POSTGRES_DB}
@@ -109,17 +73,26 @@ services:
             DB_PORT: ${POSTGRES_PORT}
             DB_USER: ${POSTGRES_USER}
             DB_PASSWORD: ${POSTGRES_PASSWORD}
+            REDIS_HOST: ${REDIS_HOST}
+            REDIS_PORT: ${REDIS_PORT}
+            RABBITMQ_HOST: ${RABBITMQ_HOST}
+            RABBITMQ_PORT: ${RABBITMQ_PORT}
+            OLLAMA_ENDPOINT: ${OLLAMA_ENDPOINT}
+        volumes:
+            - ./common:/backend/common
         ports:
             - "8000:8000"
         networks:
             - app-network
         develop:
             watch:
-                - action: sync
+                - action: sync+restart
                   path: .
                   target: /backend
                   ignore: 
                     - .venv/
+                    - .git/
+                    - __pycache__/
                 
                 - action: rebuild
                   path: ./uv.lock
@@ -128,9 +101,33 @@ services:
         depends_on:
             - database
             - redis
-            - celery-worker
+            - rabbitmq
             - ollama
     
+    ollama-service:
+        container_name: ollama_service
+        build:
+            context: /ollama_service
+            dockerfile: Dockerfile
+        restart: unless-stopped
+        volumes:
+            - ./common:/ollama_service/common
+        environment:
+            RABBITMQ_HOST: ${RABBITMQ_HOST}
+            RABBITMQ_PORT: ${RABBITMQ_PORT}
+            DB_HOST: ${POSTGRES_HOST}
+            DB_PORT: ${POSTGRES_PORT}
+            DB_USER: ${POSTGRES_USER}
+            DB_NAME: ${POSTGRES_DB}
+            DB_PASSWORD: ${POSTGRES_PASSWORD}
+            OLLAMA_ENDPOINT: ${OLLAMA_ENDPOINT}
+        ports:
+            - "8082:8082"
+        networks:
+            - app-network
+        depends_on:
+            - rabbitmq
+        
     telegram-bot:
         build: 
             context: /bot
@@ -141,18 +138,26 @@ services:
             DB_HOST: ${POSTGRES_HOST}
             DB_PORT: ${POSTGRES_PORT}
             DB_USER: ${POSTGRES_USER}
+            DB_NAME: ${POSTGRES_DB}
             DB_PASSWORD: ${POSTGRES_PASSWORD}
+            REDIS_HOST: ${REDIS_HOST}
+            REDIS_PORT: ${REDIS_PORT}
+            BACKEND_ENDPOINT: ${BACKEND_ENDPOINT}
+        volumes:
+            - ./common:/bot/common
         ports: 
-            - "8080:8080"
+            - "8083:8083"
         networks:
             - app-network
         develop:
             watch:
-                - action: sync
+                - action: sync+restart
                   path: .
                   target: /bot
                   ignore: 
                     - .venv/
+                    - .git/
+                    - __pycache__/
                 
                 - action: rebuild
                   path: ./uv.lock
@@ -160,19 +165,26 @@ services:
             - .env
         depends_on:
             - database
+            - redis
+            - rabbitmq
 
     ollama:
         image: ollama/ollama:latest
         restart: unless-stopped
+        pull_policy: always
+        tty: true
+        environment:
+            OLLAMA_MODELS: /usr/lib/ollama
         ports:
             - "11434:11434"
         volumes:
-            - ollama-data:/var/lib/ollama/data
+            - ollama-data:/usr/lib/ollama
         deploy:
             resources:
               reservations:
                 devices:
                   - driver: nvidia
+                    device_ids: ['0']
                     capabilities: [gpu]
         networks:
             - app-network
@@ -182,7 +194,8 @@ volumes:
     postgre-data:
     ollama-data:
     redis-data:
-    celery-worker-data:
+    common-data:
+    rabbitmq-data:
 
 networks:
     app-network:

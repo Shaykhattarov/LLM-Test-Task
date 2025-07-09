@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from service.user import UserService
 from schemas.user import CreateUserSchema
-from database.models.user import UserModel
+from common.database.models.user import UserModel
 
 
 router = Router(name="welcome-router")

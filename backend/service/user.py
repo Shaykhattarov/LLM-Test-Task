@@ -1,12 +1,12 @@
-import json
 import logging
 
 from fastapi import status
 from fastapi.responses import Response, JSONResponse
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.schemas.user import CreateUserSchema
-from database.models.user import UserModel
+from schemas.user import CreateUserSchema
+from common.database.models.user import UserModel
 
 
 
@@ -14,6 +14,7 @@ class UserService:
 
     def __init__(self, session: AsyncSession):
         self.session = session
+        self.logger = logging.getLogger('uvicorn.error')
 
     async def registr(self, user: CreateUserSchema) -> Response:
         user_model: UserModel = UserModel(
@@ -53,3 +54,4 @@ class UserService:
             )
         else:
             return Response(status_code=status.HTTP_404_NOT_FOUND)
+

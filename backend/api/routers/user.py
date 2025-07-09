@@ -1,15 +1,13 @@
-from typing import Annotated, List
+from typing import Annotated
 
 from fastapi import (
     APIRouter, 
-    Depends, 
-    status
+    Depends
 )
-from starlette.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.schemas.user import CreateUserSchema
-from api.service.user import UserService
+from schemas.user import CreateUserSchema
+from service.user import UserService
 from api.dependencies import get_session
 
 
