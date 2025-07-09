@@ -1,63 +1,65 @@
 import os
 import json
 import logging
-import asyncio
 
+from typing import Optional, List
 from ollama import AsyncClient
+from aiohttp import web
 
-from common.broker.rabbitmq import RabbitMQClient
-from common.database.engine import engine, sessionmaker
-from common.database.models.generated_answer import GeneratedAnswerModel    
+from pydantic import BaseModel
+from faststream.rabbit import RabbitBroker
 
 
-async def send_message_to_llm(body: bytes):
+
+broker = RabbitBroker(
+    host=os.getenv("RABBITMQ_HOST"),
+    port=int(os.getenv("RABBITMQ_PORT")),
+)
+
+async def service_incoming_messages(messages: bytes):
     
-    messages: list = json.loads(body.decode('utf-8'))
-    client = AsyncClient(
+    # messages = json.loads(messages)
+    new_message = messages[len(messages) - 1]
+
+    ollama_client = AsyncClient(
         host=os.getenv("OLLAMA_ENDPOINT")
     )
-    response = client.chat(
-        model='llama3.2',
+
+    response = await ollama_client.chat(
+        model="llama3.2",
         messages=messages,
-        stream=False,
-    )
-    answer = GeneratedAnswerModel(
-        message_id=messages[len(messages) - 1]['message_id'],
-        text=response['message']['content'],
+        stream=False
     )
 
-    async with sessionmaker() as session:
-        try:
-            session.add(answer)
-            await session.commit()
-        except Exception as err:
-            logging.exception(f"Ошибка с сохранением ответа от LLM: {err}")
-            await session.rollback()
-        else:
-            await session.refresh(answer)
-            logging.info(
-                f"Ответ на Message(id={messages[len(messages) - 1]['message_id']}) " + \
-                f"успешно сохранен в БД GeneratedAnswer(id={answer.id})"
-            )
+    response = {
+        'message_id': new_message['id'],
+        'content': response['message']['content'],
+    }
+    # await broker.connect()
+    # logging.info("[INFO] Response: " + response)
+    await broker.publish(response, "backend_messages")
 
 
-async def main():
-    rabbit = RabbitMQClient(
-        host=os.getenv("RABBITMQ_HOST"),
-        port=os.getenv('RABBITMQ_PORT'),
-        queue_name="llm_generate_answer",
-    )
+@broker.subscriber("model_messages")
+async def incoming_messages(messages: list):
+    # logging.info(messages)
+    await service_incoming_messages(messages)
 
-    await rabbit.connect() # Создаем соединение с RabbitMQ
-    await rabbit.consume(send_message_to_llm) # Начинаем слушать очередь
-    
+async def start_broker(app):
+    await broker.start()
 
+async def stop_broker(app):
+    await broker.stop()
+
+
+app = web.Application()
+app.add_routes([
+
+])
+
+app.on_startup.append(start_broker)
+app.on_cleanup.append(stop_broker)
 
 if __name__ == "__main__":
-    print("Start")
-    logging.basicConfig(
-        level=logging.INFO,
-        filename="logs.logs",
-        filemode='a'
-    )
-    asyncio.run(main())
+    logging.basicConfig(level=logging.INFO,filename="logs.logs",filemode='a')
+    web.run_app(app)

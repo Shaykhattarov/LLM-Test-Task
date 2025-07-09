@@ -1,16 +1,11 @@
 import logging
 
-from typing import Optional, List
-
 from fastapi import status
-from fastapi.encoders import jsonable_encoder
 from fastapi.responses import Response, JSONResponse
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from schemas.user import CreateUserSchema
-
 from common.database.models.user import UserModel
 
 

@@ -1,6 +1,8 @@
 import os
 import secrets
+import logging
 
+from datetime import datetime
 from typing import (
     Annotated,
     Any,
@@ -11,6 +13,8 @@ from pydantic import (
     BeforeValidator,
     computed_field,
 )
+
+from faststream.rabbit import RabbitBroker
 from pydantic_settings import BaseSettings
 
 
@@ -27,6 +31,7 @@ class Settings(BaseSettings):
     # model_config = SettingsConfigDict(
     #     env_file="../.env", env_ignore_empty=True, extra="ignore"
     # )
+    # model_config['ignoring_types'] = True
     API_STR: str = "/api"
     SECRET_KEY: str = secrets.token_urlsafe(32)
 
@@ -44,7 +49,16 @@ class Settings(BaseSettings):
         #     self.FRONTEND_HOST
         # ]
         return [str(origin).rstrip("/") for origin in self.BACKEND_CORS_ORIGIN]
+    
+    @property
+    def rabbitmq_url(self) -> str:
+        return f"amqp://{self.RABBITMQ_USER}:{self.RABBITMQ_PASSWORD}@{self.RABBITMQ_HOST}:{self.RABBITMQ_PORT}/{self.RABBITMQ_VHOST}"
 
+    RABBITMQ_HOST: str = os.getenv("RABBITMQ_HOST")
+    RABBITMQ_PORT: str = os.getenv("RABBITMQ_PORT")
+    RABBITMQ_USER: str = "guest"
+    RABBITMQ_PASSWORD: str = "guest"
+    RABBITMQ_VHOST: str = "vhost"
     PROJECT_NAME: str = "IBS Test Task | Question-Answer Bot"
     POSTGRES_SERVER: str = os.getenv("DB_HOST")
     POSTGRES_PORT: int = os.getenv("DB_PORT")
@@ -54,3 +68,10 @@ class Settings(BaseSettings):
     # DATABASE_URL: str = f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_SERVER}/{POSTGRES_DB}"
 
 settings = Settings()
+
+
+# Создание брокера сообщений
+rabbit_broker = RabbitBroker(
+    host=settings.RABBITMQ_HOST,
+    port=int(settings.RABBITMQ_PORT)
+)

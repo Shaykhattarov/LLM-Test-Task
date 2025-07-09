@@ -7,8 +7,7 @@ requires-python = ">=3.13"
 dependencies = [
     "aio-pika>=9.5.5",
     "asyncio>=3.4.3",
-    "asyncpg>=0.30.0",
     "ollama>=0.5.1",
-    "sqlalchemy>=2.0.41",
-    "redis>=6.2.0",
+    "faststream>=0.5.45",
+    "aiohttp>=3.12.13",
 ]

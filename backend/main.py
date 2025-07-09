@@ -1,7 +1,7 @@
 import os
 import logging
-from datetime import datetime
 
+from datetime import datetime
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -9,10 +9,12 @@ from core.config import settings
 from api.routers import global_router
 
 
+
 # Инициализация проекта
 app = FastAPI(
     title=settings.PROJECT_NAME,
     openapi_url=f"{settings.API_STR}/openapi.json",
+    # lifespan=lifespan,
 )
 
 # Настройка логирования
@@ -21,6 +23,7 @@ log_filename = os.path.join(
     "logs", 
     f"backend-{datetime.now().strftime('%Y-%m-%d')}.logs"
 )
+
 logging.basicConfig(
     level=logging.INFO,
     filename=log_filename,

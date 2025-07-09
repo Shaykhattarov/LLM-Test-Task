@@ -65,7 +65,7 @@ services:
         build: 
             context: /backend
             dockerfile: Dockerfile
-        command: uv run uvicorn main:app --host=0.0.0.0 --port=8080 --log-level='trace'
+        command: uv run uvicorn main:app --host=0.0.0.0 --port=8000 --log-level='trace'
         restart: unless-stopped
         environment:
             DB_NAME: ${POSTGRES_DB}
@@ -81,7 +81,7 @@ services:
         volumes:
             - ./common:/backend/common
         ports:
-            - "8080:8080"
+            - "8000:8000"
         networks:
             - app-network
         develop:
@@ -101,6 +101,7 @@ services:
         depends_on:
             - database
             - redis
+            - rabbitmq
             - ollama
     
     ollama-service:
@@ -114,11 +115,18 @@ services:
         environment:
             RABBITMQ_HOST: ${RABBITMQ_HOST}
             RABBITMQ_PORT: ${RABBITMQ_PORT}
+            DB_HOST: ${POSTGRES_HOST}
+            DB_PORT: ${POSTGRES_PORT}
+            DB_USER: ${POSTGRES_USER}
+            DB_NAME: ${POSTGRES_DB}
+            DB_PASSWORD: ${POSTGRES_PASSWORD}
             OLLAMA_ENDPOINT: ${OLLAMA_ENDPOINT}
         ports:
             - "8082:8082"
         networks:
             - app-network
+        depends_on:
+            - rabbitmq
         
     telegram-bot:
         build: 
@@ -157,6 +165,8 @@ services:
             - .env
         depends_on:
             - database
+            - redis
+            - rabbitmq
 
     ollama:
         image: ollama/ollama:latest

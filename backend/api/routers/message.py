@@ -30,7 +30,13 @@ async def get_message(id: int, session: Annotated[AsyncSession, Depends(get_sess
 
 
 @message_router.get("/history/{chat_id}")
-async def get_message_chat(chat_id: int, session: Annotated[AsyncSession, Depends(get_session)]):
+async def get_messages_history(chat_id: int, session: Annotated[AsyncSession, Depends(get_session)]):
     logging.info(f"Router:/message/history - {chat_id}")
     service = MessageService(session)
     return await service.history(chat_id)
+
+@message_router.get("/status/{status}")
+async def get_messages_by_status(status: str, session: Annotated[AsyncSession, Depends(get_session)]):
+    logging.info(f"Router:/message/status/ - {status}")
+    service = MessageService(session)
+    return await service.getlist_status(status)

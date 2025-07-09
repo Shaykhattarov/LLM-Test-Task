@@ -57,4 +57,13 @@ if __name__ == "__main__":
         filename=log_path,
         filemode="a"
     )
+
+    # rabbit = RabbitMQClient(
+    #     host=os.getenv("RABBITMQ_HOST"),
+    #     port=os.getenv('RABBITMQ_PORT'),
+    #     publish_queue_name="receive_text_model",
+    #     consume_queue_name="send_text_model",
+    #     process_callable=send_message_to_llm
+    # )
+
     asyncio.run(main())
