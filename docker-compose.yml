@@ -99,11 +99,10 @@ services:
         env_file:
             - .env
         depends_on:
+            - rabbitmq
             - database
             - redis
-            - rabbitmq
-            - ollama
-    
+            
     ollama-service:
         container_name: ollama_service
         build:
@@ -126,7 +125,7 @@ services:
         networks:
             - app-network
         depends_on:
-            - rabbitmq
+            - backend
         
     telegram-bot:
         build: 
@@ -164,17 +163,20 @@ services:
         env_file:
             - .env
         depends_on:
-            - database
-            - redis
-            - rabbitmq
+            - backend
+            
 
     ollama:
-        image: ollama/ollama:latest
+        image: ollama/ollama:0.9.6
         restart: unless-stopped
         pull_policy: always
         tty: true
         environment:
             OLLAMA_MODELS: /usr/lib/ollama
+            CUDA_ERROR_LEVEL: 50
+            OLLAMA_DEBUG: 1
+            CUDE_VISIBLE_DEVICES: 0
+            NVIDIA_VISIBLE_DEVICES: 0
         ports:
             - "11434:11434"
         volumes:
@@ -184,10 +186,12 @@ services:
               reservations:
                 devices:
                   - driver: nvidia
-                    device_ids: ['0']
+                    count: all
                     capabilities: [gpu]
         networks:
             - app-network
+        depends_on:
+            - ollama-service
                 
 
 volumes:

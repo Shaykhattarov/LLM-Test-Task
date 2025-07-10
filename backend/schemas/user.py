@@ -1,3 +1,4 @@
+from typing import Any
 from pydantic import BaseModel, Field
 
 
@@ -5,7 +6,8 @@ class GetUserSchema(BaseModel):
     id: int
     telegram_id: int
     name: str
-    surname: str
+    username: str
+    created_at: Any
 
 
 class CreateUserSchema(BaseModel):

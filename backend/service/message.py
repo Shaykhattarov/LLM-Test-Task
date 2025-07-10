@@ -92,7 +92,7 @@ class MessageService:
             status_code=status.HTTP_200_OK
         )            
 
-    async def history(self, chat_id: int, limit=5) -> JSONResponse:
+    async def history(self, chat_id: int, limit: int) -> JSONResponse:
         conversation = await self.__history(chat_id=chat_id, limit=limit)
         # self.logger.info(conversation)
 
@@ -129,27 +129,16 @@ class MessageService:
         else:
             return result.scalar_one_or_none()
         
-    async def __history(self, chat_id: int, user_id: int=None, limit: int = 5) -> List[dict[str]]:
+    async def __history(self, chat_id: int, limit: int) -> List[dict[str]]:
         """ Получение истории сообщений пользователя по chat_id или user_id (костыльно) """
-        if user_id is None:
-            statement = select(MessageModel, GeneratedAnswerModel) \
+        statement = select(MessageModel, GeneratedAnswerModel, UserModel) \
                     .join(GeneratedAnswerModel, GeneratedAnswerModel.message_id == MessageModel.id) \
                     .join(UserModel, UserModel.chat_id == chat_id) \
                     .filter(MessageModel.status == 'send') \
+                    .filter(UserModel.chat_id == chat_id) \
                     .limit(limit) \
                     .order_by(desc(MessageModel.created_at))
-                          
-        else:
-            statement = select(MessageModel, GeneratedAnswerModel) \
-                    .join(UserModel, UserModel.id == MessageModel.user_id) \
-                    .join(GeneratedAnswerModel, GeneratedAnswerModel.message_id == MessageModel.id) \
-                    .filter(MessageModel.status == 'send') \
-                    .filter(UserModel.id == user_id) \
-                    .order_by(desc(MessageModel.created_at)) \
-                    .limit(limit) \
-                    .order_by(MessageModel.created_at)
                                         
-        
         try:
             response = await self.session.execute(statement)
         except Exception as err:
@@ -159,7 +148,7 @@ class MessageService:
         response = response.fetchall()
         
         conversation: List[dict] = []
-        for message, answer in response:
+        for message, answer, user in response:
             conversation.extend(
                 [
                     {
