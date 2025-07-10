@@ -24,7 +24,7 @@ message_router = APIRouter(prefix="/message", tags=["Message"])
 logger = logging.getLogger('uvicorn.error')
 
 
-@message_router.post("/create")
+@message_router.post("/create/")
 async def create_message(message: CreateMessageSchema, session: Annotated[AsyncSession, Depends(get_session)]):
     logging.info(f"Router:/message/create - {message.user_id}, {message.text}")
     service = MessageService(session)
@@ -37,13 +37,18 @@ async def get_message(id: int, session: Annotated[AsyncSession, Depends(get_sess
     return await service.get(id)
 
 
-@message_router.get("/history/{chat_id}")
-async def get_messages_history(chat_id: int, session: Annotated[AsyncSession, Depends(get_session)]):
-    logging.info(f"Router:/message/history - {chat_id}")
+@message_router.get("/history/{chat_id}/")
+async def get_messages_history(chat_id: int, session: Annotated[AsyncSession, Depends(get_session)], limit: int = 5):
     service = MessageService(session)
-    return await service.history(chat_id)
+    return await service.history(chat_id, limit)
 
-@message_router.get("/status/{status}")
+@message_router.get("/status/list/")
+async def get_messages_statuses():
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content=['new', 'pending', 'send']
+    )
+@message_router.get("/list/status/{status}")
 async def get_messages_by_status(status: str, session: Annotated[AsyncSession, Depends(get_session)]):
     logging.info(f"Router:/message/status/ - {status}")
     service = MessageService(session)
@@ -70,6 +75,11 @@ async def get_answer(id: int, session: Annotated[AsyncSession, Depends(get_sessi
             }
         )
     )
+
+@message_router.get("/{message_id}/answer/")
+async def get_answer_by_message_id(message_id: int, session: Annotated[AsyncSession, Depends(get_session)]):
+    service = GeneratedAnswerService(session)
+    return await service.get_by_message_id(message_id)
 
 @message_router.post("/answer/approve/{answer_id}")
 async def approve_model_answer(answer_id: int, session: Annotated[AsyncSession, Depends(get_session)]):

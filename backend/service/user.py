@@ -1,8 +1,11 @@
 import logging
+from typing import Optional
 
 from fastapi import status
+from fastapi.encoders import jsonable_encoder
 from fastapi.responses import Response, JSONResponse
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from schemas.user import CreateUserSchema
@@ -55,3 +58,18 @@ class UserService:
         else:
             return Response(status_code=status.HTTP_404_NOT_FOUND)
 
+    async def get_users_list(self, limit: int) -> JSONResponse|Response:
+        statement = select(UserModel).limit(limit)
+        
+        try:
+            response = await self.session.execute(statement)
+        except Exception as err:
+            self.logger.exception(err)
+            return Response(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        response = response.scalars().all()
+        
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content=jsonable_encoder(response)
+        )

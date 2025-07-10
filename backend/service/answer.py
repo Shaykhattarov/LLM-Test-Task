@@ -5,11 +5,13 @@ import logging
 from typing import Any, List, Optional, Union
 
 from fastapi import status
+from fastapi.encoders import jsonable_encoder
 from fastapi.responses import Response, JSONResponse
 
 from core.config import rabbit_broker
 from service.message import MessageService
 from schemas.message import EditModelAnswerSchema
+from schemas.answer import AnswerSchema
 
 from common.database.models.user import UserModel
 from common.database.models.message import MessageModel, MessageStatus
@@ -31,6 +33,37 @@ class GeneratedAnswerService:
     async def get(self, id: int) -> Optional[GeneratedAnswerModel]:
         answer: Optional[GeneratedAnswerModel] = await self.__get(id)
         return answer
+
+    async def get_by_message_id(self, message_id: int):
+        statement = select(GeneratedAnswerModel) \
+                    .where(GeneratedAnswerModel.message_id == message_id)
+        
+        try:
+            response = await self.session.execute(statement)
+        except Exception as err:
+            self.logger.exception(err)
+            return Response(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        
+        response = response.scalar_one_or_none()
+
+        if response is None:
+            return Response(
+                status_code=status.HTTP_404_NOT_FOUND
+            )
+        
+        answer_schema = AnswerSchema(
+            id=response.id,
+            message_id=response.message_id,
+            text=response.text,
+            created_at=response.created_at
+        )
+
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content=jsonable_encoder(answer_schema)
+        )
 
     async def create(self, message: dict) -> Optional[GeneratedAnswerModel]:
         answer: Optional[GeneratedAnswerModel] = await self.__create(message)
